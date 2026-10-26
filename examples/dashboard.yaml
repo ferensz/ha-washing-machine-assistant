@@ -1,0 +1,7 @@
+# Add this card to a dashboard after adding the integration and the
+# /washing_machine_assistant/washing-machine-card.js resource.
+type: custom:washing-machine-card
+entity: sensor.washing_machine_controls
+title: Washing machine
+status_entity: binary_sensor.washing_machine_status
+remaining_entity: sensor.washing_machine_remaining_time

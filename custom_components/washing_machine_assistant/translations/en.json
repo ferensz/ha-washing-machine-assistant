@@ -1,0 +1,50 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Washing Machine Assistant",
+        "description": "Select the hOn washing machine you want to control.",
+        "data": {
+          "device_id": "Washing machine"
+        }
+      }
+    },
+    "error": {
+      "device_not_found": "The selected hOn device no longer exists.",
+      "hon_entry_not_found": "Could not find the hOn config entry for this device.",
+      "catalog_missing": "The bundled program catalog is missing or invalid."
+    },
+    "abort": {
+      "already_configured": "This washing machine is already configured.",
+      "hon_not_configured": "The hOn integration is not configured.",
+      "no_washing_machine": "No hOn washing machine was found.",
+      "unsupported_model": "The catalog does not support model {model}. Supported models: {models}."
+    }
+  },
+  "services": {
+    "start": {
+      "name": "Start a washing program",
+      "description": "Start the current draft or a program supplied in this call."
+    },
+    "stop": {
+      "name": "Stop the current program",
+      "description": "Stop the cycle on the hOn washing machine."
+    },
+    "load_favorite": {
+      "name": "Load a favorite",
+      "description": "Load a saved favorite into the draft without starting it."
+    },
+    "start_favorite": {
+      "name": "Start a favorite",
+      "description": "Load a saved favorite and start it."
+    },
+    "save_favorite": {
+      "name": "Save a favorite",
+      "description": "Save the current program and settings, or a supplied program and settings."
+    },
+    "delete_favorite": {
+      "name": "Delete a favorite",
+      "description": "Delete a saved favorite."
+    }
+  }
+}

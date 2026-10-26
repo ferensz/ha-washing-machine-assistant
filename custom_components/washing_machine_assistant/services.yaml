@@ -1,0 +1,111 @@
+start:
+  name: Start a washing program
+  description: Start the current draft or a program supplied in this call.
+  fields:
+    device_id:
+      name: Washing machine
+      description: The hOn washing machine. Optional when only one is configured.
+      selector:
+        device:
+          integration: hon
+    program:
+      name: Program
+      description: Program key or display label. Defaults to the current draft.
+      example: iot_wash_cotton
+      selector:
+        text:
+    parameters:
+      name: Parameters
+      description: Optional mapping of parameter keys to values.
+      example:
+        temp: "40"
+        spinSpeed: "1400"
+      selector:
+        object:
+    dry_run:
+      name: Dry run
+      description: Return the exact payload without sending it to the appliance.
+      default: false
+      selector:
+        boolean:
+
+stop:
+  name: Stop the current program
+  description: Stop the cycle on the hOn washing machine.
+  fields:
+    device_id:
+      name: Washing machine
+      description: The hOn washing machine. Optional when only one is configured.
+      selector:
+        device:
+          integration: hon
+
+load_favorite:
+  name: Load a favorite
+  description: Load a saved favorite into the draft without starting it.
+  fields:
+    device_id:
+      name: Washing machine
+      selector:
+        device:
+          integration: hon
+    name:
+      name: Favorite name
+      required: true
+      selector:
+        text:
+
+start_favorite:
+  name: Start a favorite
+  description: Load a saved favorite and start it.
+  fields:
+    device_id:
+      name: Washing machine
+      selector:
+        device:
+          integration: hon
+    name:
+      name: Favorite name
+      required: true
+      selector:
+        text:
+
+save_favorite:
+  name: Save a favorite
+  description: Save the current program and settings, or a supplied program and settings.
+  fields:
+    device_id:
+      name: Washing machine
+      selector:
+        device:
+          integration: hon
+    name:
+      name: Favorite name
+      required: true
+      selector:
+        text:
+    program:
+      name: Program
+      description: Optional program key or label. Defaults to the current draft.
+      selector:
+        text:
+    parameters:
+      name: Parameters
+      description: Optional mapping of parameter keys to values.
+      selector:
+        object:
+
+delete_favorite:
+  name: Delete a favorite
+  description: Delete a saved favorite.
+  fields:
+    device_id:
+      name: Washing machine
+      selector:
+        device:
+          integration: hon
+    name:
+      name: Favorite name
+      required: true
+      selector:
+        text:
