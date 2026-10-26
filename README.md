@@ -33,11 +33,11 @@ It does **not** replace or patch hOn. It calls the public `hon.start_program` se
    type: custom:washing-machine-card
    entity: sensor.washing_machine_controls
    title: Washing machine
-   status_entity: binary_sensor.washing_machine_status
+   mode_entity: sensor.washing_machine_mode
    remaining_entity: sensor.washing_machine_remaining_time
    ```
 
-   `status_entity` and `remaining_entity` are optional; the values above are the defaults. Remove them if your hOn entity IDs differ and you do not want a status pill.
+   `mode_entity` and `remaining_entity` are optional; the values above are the defaults. The card uses hOn's `machMode` (Ready/Running/Paused/Scheduled/Finished/Error) rather than the on/off status sensor, which is also on while the appliance is merely powered or ready.
 
 ## Manual installation (zip)
 

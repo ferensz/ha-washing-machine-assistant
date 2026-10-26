@@ -161,6 +161,11 @@ const states = {
     attributes: {},
     last_updated: "2026-10-26T12:00:00+00:00",
   },
+  "sensor.washing_machine_mode": {
+    state: "1",
+    attributes: {},
+    last_updated: "2026-10-26T12:00:00+00:00",
+  },
   "sensor.washing_machine_remaining_time": {
     state: "0",
     attributes: {},
@@ -193,8 +198,31 @@ assert.match(html, /Temperature/);
 assert.match(html, /Delay time/);
 assert.match(html, /Prewash/);
 assert.match(html, /Rapid 14 min/);
+assert.match(html, /Ready/);
+assert.doesNotMatch(html, /Running/);
+assert.match(html, /id="start" >Start cycle/);
 assert.equal(card._summaryText(attributes), "Cotton · 60 °C · 1400 rpm");
 assert.equal(card._rangeLabel(30, " min"), "30 min");
+
+// Ready (machMode 1) must not be reported as running even when the
+// on/off status sensor is on.
+states["binary_sensor.washing_machine_status"].state = "on";
+states["sensor.washing_machine_mode"].state = "1";
+states["sensor.washing_machine_mode"].last_updated =
+  "2026-10-26T12:00:01+00:00";
+card.hass = { states, callService: async () => undefined };
+assert.match(card.shadowRoot.innerHTML, /Ready/);
+assert.doesNotMatch(card.shadowRoot.innerHTML, /Running/);
+
+// machMode 2 is running.
+states["sensor.washing_machine_mode"].state = "2";
+states["sensor.washing_machine_mode"].last_updated =
+  "2026-10-26T12:00:02+00:00";
+states["sensor.washing_machine_remaining_time"].state = "42";
+card.hass = { states, callService: async () => undefined };
+assert.match(card.shadowRoot.innerHTML, /Running/);
+assert.match(card.shadowRoot.innerHTML, /42 min left/);
+assert.match(card.shadowRoot.innerHTML, /id="start" disabled>Running/);
 
 card._search = "rapid";
 const options = card._programOptions(attributes.programs, "Cotton");

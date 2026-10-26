@@ -23,6 +23,21 @@ const CATEGORY_LABELS = {
   extras: "Extras",
 };
 
+// hOn washing-machine `machMode` values (from the hOn translation file).
+const MODE_LABELS = {
+  "0": "Disconnected",
+  "1": "Ready",
+  "2": "Running",
+  "3": "Paused",
+  "4": "Scheduled",
+  "5": "Scheduled",
+  "6": "Error",
+  "7": "Finished",
+  "8": "Test",
+  "9": "Ending",
+};
+const ACTIVE_MODES = new Set(["2", "3", "4", "5", "9"]);
+
 const esc = (value) =>
   String(value ?? "").replace(
     /[&<>"']/g,
@@ -58,6 +73,7 @@ class WashingMachineCard extends HTMLElement {
     this._config = {
       entity: config.entity,
       title: config.title || "Washing machine",
+      mode_entity: config.mode_entity || "sensor.washing_machine_mode",
       status_entity:
         config.status_entity || "binary_sensor.washing_machine_status",
       remaining_entity:
@@ -72,10 +88,12 @@ class WashingMachineCard extends HTMLElement {
       this._renderMissing();
       return;
     }
+    const mode = hass.states[this._config.mode_entity];
     const status = hass.states[this._config.status_entity];
     const remaining = hass.states[this._config.remaining_entity];
     const stamp = [
       sensor.last_updated || sensor.last_changed,
+      mode?.last_updated || mode?.last_changed,
       status?.last_updated || status?.last_changed,
       remaining?.last_updated || remaining?.last_changed,
     ].join("|");
@@ -125,7 +143,6 @@ class WashingMachineCard extends HTMLElement {
     }
 
     const status = this._status();
-    const running = status.running;
     const error = this._error
       ? `<div class="error">${esc(this._error)}</div>`
       : "";
@@ -167,8 +184,8 @@ class WashingMachineCard extends HTMLElement {
           </div>
 
           <div class="actions">
-            <button class="btn primary" id="start" ${running ? "disabled" : ""}>${running ? "Running…" : "Start cycle"}</button>
-            <button class="btn" id="stop">Stop</button>
+            <button class="btn primary" id="start" ${status.blocked ? "disabled" : ""}>${esc(status.button_label || "Start cycle")}</button>
+            <button class="btn" id="stop" ${status.active ? "" : "disabled"}>Stop</button>
           </div>
 
           <div class="section">
@@ -347,23 +364,52 @@ class WashingMachineCard extends HTMLElement {
   }
 
   _status() {
-    const status = this._hass.states[this._config.status_entity];
+    const modeState = this._hass.states[this._config.mode_entity];
     const remaining = this._hass.states[this._config.remaining_entity];
-    if (!status) return { running: false, html: "" };
-    const running = status.state === "on";
     const remainingValue = Number(remaining?.state);
     const remainingText =
-      running && Number.isFinite(remainingValue) && remainingValue > 0
+      Number.isFinite(remainingValue) && remainingValue > 0
         ? ` · ${Math.round(remainingValue)} min left`
         : "";
-    const label = running
-      ? "Running"
-      : status.state === "off"
-        ? "Idle"
-        : status.state;
+
+    if (
+      modeState &&
+      modeState.state !== "unavailable" &&
+      modeState.state !== "unknown"
+    ) {
+      const mode = String(modeState.state);
+      const label = MODE_LABELS[mode] || `Mode ${mode}`;
+      const active = ACTIVE_MODES.has(mode);
+      const blocked = active || mode === "0";
+      let buttonLabel = "Start cycle";
+      if (mode === "2") buttonLabel = "Running…";
+      else if (mode === "3") buttonLabel = "Paused";
+      else if (mode === "4" || mode === "5") buttonLabel = "Scheduled";
+      else if (mode === "9") buttonLabel = "Ending…";
+      else if (mode === "0") buttonLabel = "Disconnected";
+      const tone = mode === "6" ? "error" : active ? "on" : "";
+      const showRemaining = ["2", "3"].includes(mode);
+      return {
+        active,
+        blocked,
+        button_label: buttonLabel,
+        html: `<div class="status ${tone}"><span class="status-dot"></span>${esc(label)}${showRemaining ? esc(remainingText) : ""}</div>`,
+      };
+    }
+
+    // The mode sensor is normally present. If it is not, fall back to the
+    // hOn on/off status without calling it "Running": onOffStatus is true
+    // while the appliance is merely powered/ready.
+    const fallback = this._hass.states[this._config.status_entity];
+    if (!fallback) {
+      return { active: false, blocked: false, button_label: "Start cycle", html: "" };
+    }
+    const label = fallback.state === "on" ? "On" : fallback.state === "off" ? "Off" : fallback.state;
     return {
-      running,
-      html: `<div class="status ${running ? "on" : ""}"><span class="status-dot"></span>${esc(label)}${esc(remainingText)}</div>`,
+      active: false,
+      blocked: false,
+      button_label: "Start cycle",
+      html: `<div class="status"><span class="status-dot"></span>${esc(label)}</div>`,
     };
   }
 
@@ -500,8 +546,10 @@ class WashingMachineCard extends HTMLElement {
       .subtitle { margin-top: 2px; font-size: .78rem; color: var(--secondary-text-color); }
       .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; background: var(--secondary-background-color); color: var(--secondary-text-color); font-size: .75rem; white-space: nowrap; }
       .status.on { color: var(--primary-color); }
+      .status.error { color: var(--error-color, #b00020); }
       .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--disabled-text-color, #9e9e9e); }
       .status.on .status-dot { background: var(--primary-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent); }
+      .status.error .status-dot { background: var(--error-color, #b00020); box-shadow: none; }
       .error { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--error-color, #b00020) 12%, transparent); color: var(--error-color, #b00020); font-size: .8rem; }
       .section { margin-top: 16px; }
       .section.program-section { margin-top: 14px; }
