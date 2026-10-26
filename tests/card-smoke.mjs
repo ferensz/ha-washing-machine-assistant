@@ -224,6 +224,30 @@ assert.match(card.shadowRoot.innerHTML, /Running/);
 assert.match(card.shadowRoot.innerHTML, /42 min left/);
 assert.match(card.shadowRoot.innerHTML, /id="start" disabled>Running/);
 
+const modeCases = [
+  { mode: "0", label: "Disconnected", startDisabled: true, stopDisabled: true },
+  { mode: "3", label: "Paused", startDisabled: true, stopDisabled: false },
+  { mode: "7", label: "Finished", startDisabled: false, stopDisabled: true },
+];
+for (const testCase of modeCases) {
+  states["sensor.washing_machine_mode"].state = testCase.mode;
+  states["sensor.washing_machine_mode"].last_updated =
+    `2026-10-26T12:10:0${testCase.mode}+00:00`;
+  card.hass = { states, callService: async () => undefined };
+  const rendered = card.shadowRoot.innerHTML;
+  assert.match(rendered, new RegExp(testCase.label));
+  assert.equal(
+    new RegExp('id="start" disabled').test(rendered),
+    testCase.startDisabled,
+    `start disabled for mode ${testCase.mode}`
+  );
+  assert.equal(
+    new RegExp('id="stop" disabled').test(rendered),
+    testCase.stopDisabled,
+    `stop disabled for mode ${testCase.mode}`
+  );
+}
+
 card._search = "rapid";
 const options = card._programOptions(attributes.programs, "Cotton");
 assert.match(options, /Rapid 14 min/);
