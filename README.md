@@ -34,10 +34,11 @@ It does **not** replace or patch hOn. It calls the public `hon.start_program` se
    entity: sensor.washing_machine_controls
    title: Washing machine
    mode_entity: sensor.washing_machine_mode
+   remote_control_entity: binary_sensor.washing_machine_remote_control
    remaining_entity: sensor.washing_machine_remaining_time
    ```
 
-   `mode_entity` and `remaining_entity` are optional; the values above are the defaults. The card uses hOn's `machMode` (Ready/Running/Paused/Scheduled/Finished/Error) rather than the on/off status sensor, which is also on while the appliance is merely powered or ready.
+   `mode_entity`, `remote_control_entity` and `remaining_entity` are optional; the values above are the defaults. The card uses hOn's `machMode` (Ready/Running/Paused/Scheduled/Finished/Error) rather than the on/off status sensor, which is also on while the appliance is merely powered or ready. It shows the remote-control state separately and disables Start/Stop while remote control is off.
 
 ## Manual installation (zip)
 

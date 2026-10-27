@@ -76,6 +76,9 @@ class WashingMachineCard extends HTMLElement {
       mode_entity: config.mode_entity || "sensor.washing_machine_mode",
       status_entity:
         config.status_entity || "binary_sensor.washing_machine_status",
+      remote_control_entity:
+        config.remote_control_entity ||
+        "binary_sensor.washing_machine_remote_control",
       remaining_entity:
         config.remaining_entity || "sensor.washing_machine_remaining_time",
     };
@@ -90,11 +93,13 @@ class WashingMachineCard extends HTMLElement {
     }
     const mode = hass.states[this._config.mode_entity];
     const status = hass.states[this._config.status_entity];
+    const remote = hass.states[this._config.remote_control_entity];
     const remaining = hass.states[this._config.remaining_entity];
     const stamp = [
       sensor.last_updated || sensor.last_changed,
       mode?.last_updated || mode?.last_changed,
       status?.last_updated || status?.last_changed,
+      remote?.last_updated || remote?.last_changed,
       remaining?.last_updated || remaining?.last_changed,
     ].join("|");
     if (stamp === this._lastStamp) return;
@@ -185,7 +190,7 @@ class WashingMachineCard extends HTMLElement {
 
           <div class="actions">
             <button class="btn primary" id="start" ${status.blocked ? "disabled" : ""}>${esc(status.button_label || "Start cycle")}</button>
-            <button class="btn" id="stop" ${status.active ? "" : "disabled"}>Stop</button>
+            <button class="btn" id="stop" ${status.stop_enabled ? "" : "disabled"}>Stop</button>
           </div>
 
           <div class="section">
@@ -365,12 +370,28 @@ class WashingMachineCard extends HTMLElement {
 
   _status() {
     const modeState = this._hass.states[this._config.mode_entity];
+    const remoteState = this._hass.states[this._config.remote_control_entity];
     const remaining = this._hass.states[this._config.remaining_entity];
     const remainingValue = Number(remaining?.state);
     const remainingText =
       Number.isFinite(remainingValue) && remainingValue > 0
         ? ` · ${Math.round(remainingValue)} min left`
         : "";
+
+    const remoteMissing =
+      !remoteState ||
+      remoteState.state === "unavailable" ||
+      remoteState.state === "unknown";
+    const remoteOff = remoteState?.state === "off";
+    const remoteLabel = remoteOff
+      ? "Remote off"
+      : remoteMissing
+        ? "Remote unknown"
+        : "Remote connected";
+    const remoteTone = remoteOff ? "disconnected" : remoteMissing ? "" : "connected";
+    const remotePill = `<div class="status ${remoteTone}"><span class="status-dot"></span>${esc(remoteLabel)}</div>`;
+    const statusGroup = (modePill) =>
+      `<div class="status-group">${modePill}${remotePill}</div>`;
 
     if (
       modeState &&
@@ -380,20 +401,24 @@ class WashingMachineCard extends HTMLElement {
       const mode = String(modeState.state);
       const label = MODE_LABELS[mode] || `Mode ${mode}`;
       const active = ACTIVE_MODES.has(mode);
-      const blocked = active || mode === "0";
+      const blocked = active || mode === "0" || remoteOff;
+      const stopEnabled = active && !remoteOff;
       let buttonLabel = "Start cycle";
-      if (mode === "2") buttonLabel = "Running…";
+      if (remoteOff) buttonLabel = "Remote off";
+      else if (mode === "2") buttonLabel = "Running…";
       else if (mode === "3") buttonLabel = "Paused";
       else if (mode === "4" || mode === "5") buttonLabel = "Scheduled";
       else if (mode === "9") buttonLabel = "Ending…";
       else if (mode === "0") buttonLabel = "Disconnected";
       const tone = mode === "6" ? "error" : active ? "on" : "";
       const showRemaining = ["2", "3"].includes(mode);
+      const modePill = `<div class="status ${tone}"><span class="status-dot"></span>${esc(label)}${showRemaining ? esc(remainingText) : ""}</div>`;
       return {
         active,
         blocked,
+        stop_enabled: stopEnabled,
         button_label: buttonLabel,
-        html: `<div class="status ${tone}"><span class="status-dot"></span>${esc(label)}${showRemaining ? esc(remainingText) : ""}</div>`,
+        html: statusGroup(modePill),
       };
     }
 
@@ -401,15 +426,22 @@ class WashingMachineCard extends HTMLElement {
     // hOn on/off status without calling it "Running": onOffStatus is true
     // while the appliance is merely powered/ready.
     const fallback = this._hass.states[this._config.status_entity];
-    if (!fallback) {
-      return { active: false, blocked: false, button_label: "Start cycle", html: "" };
-    }
-    const label = fallback.state === "on" ? "On" : fallback.state === "off" ? "Off" : fallback.state;
+    const fallbackLabel = !fallback
+      ? ""
+      : fallback.state === "on"
+        ? "On"
+        : fallback.state === "off"
+          ? "Off"
+          : fallback.state;
+    const fallbackPill = fallbackLabel
+      ? `<div class="status"><span class="status-dot"></span>${esc(fallbackLabel)}</div>`
+      : "";
     return {
       active: false,
-      blocked: false,
-      button_label: "Start cycle",
-      html: `<div class="status"><span class="status-dot"></span>${esc(label)}</div>`,
+      blocked: remoteOff,
+      stop_enabled: false,
+      button_label: remoteOff ? "Remote off" : "Start cycle",
+      html: statusGroup(fallbackPill),
     };
   }
 
@@ -545,11 +577,16 @@ class WashingMachineCard extends HTMLElement {
       .title { font-size: 1.1rem; font-weight: 600; color: var(--primary-text-color); }
       .subtitle { margin-top: 2px; font-size: .78rem; color: var(--secondary-text-color); }
       .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; background: var(--secondary-background-color); color: var(--secondary-text-color); font-size: .75rem; white-space: nowrap; }
+      .status-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
       .status.on { color: var(--primary-color); }
       .status.error { color: var(--error-color, #b00020); }
+      .status.connected { color: var(--success-color, #43a047); }
+      .status.disconnected { color: var(--error-color, #b00020); }
       .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--disabled-text-color, #9e9e9e); }
       .status.on .status-dot { background: var(--primary-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent); }
       .status.error .status-dot { background: var(--error-color, #b00020); box-shadow: none; }
+      .status.connected .status-dot { background: var(--success-color, #43a047); box-shadow: none; }
+      .status.disconnected .status-dot { background: var(--error-color, #b00020); box-shadow: none; }
       .error { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--error-color, #b00020) 12%, transparent); color: var(--error-color, #b00020); font-size: .8rem; }
       .section { margin-top: 16px; }
       .section.program-section { margin-top: 14px; }
@@ -598,6 +635,7 @@ class WashingMachineCard extends HTMLElement {
         .param-grid { grid-template-columns: 1fr 1fr; }
         .header { flex-direction: column; }
         .status { align-self: flex-start; }
+        .status-group { justify-content: flex-start; }
       }
       @media (max-width: 340px) {
         .param-grid { grid-template-columns: 1fr; }

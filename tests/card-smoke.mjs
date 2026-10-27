@@ -166,6 +166,11 @@ const states = {
     attributes: {},
     last_updated: "2026-10-26T12:00:00+00:00",
   },
+  "binary_sensor.washing_machine_remote_control": {
+    state: "on",
+    attributes: {},
+    last_updated: "2026-10-26T12:00:00+00:00",
+  },
   "sensor.washing_machine_remaining_time": {
     state: "0",
     attributes: {},
@@ -199,6 +204,7 @@ assert.match(html, /Delay time/);
 assert.match(html, /Prewash/);
 assert.match(html, /Rapid 14 min/);
 assert.match(html, /Ready/);
+assert.match(html, /Remote connected/);
 assert.doesNotMatch(html, /Running/);
 assert.match(html, /id="start" >Start cycle/);
 assert.equal(card._summaryText(attributes), "Cotton · 60 °C · 1400 rpm");
@@ -212,7 +218,23 @@ states["sensor.washing_machine_mode"].last_updated =
   "2026-10-26T12:00:01+00:00";
 card.hass = { states, callService: async () => undefined };
 assert.match(card.shadowRoot.innerHTML, /Ready/);
+assert.match(card.shadowRoot.innerHTML, /Remote connected/);
 assert.doesNotMatch(card.shadowRoot.innerHTML, /Running/);
+
+// Remote control off blocks Start/Stop even when the mode is Ready.
+states["binary_sensor.washing_machine_remote_control"].state = "off";
+states["binary_sensor.washing_machine_remote_control"].last_updated =
+  "2026-10-26T12:00:03+00:00";
+card.hass = { states, callService: async () => undefined };
+assert.match(card.shadowRoot.innerHTML, /Remote off/);
+assert.match(card.shadowRoot.innerHTML, /Ready/);
+assert.match(card.shadowRoot.innerHTML, /id="start" disabled>Remote off/);
+assert.match(card.shadowRoot.innerHTML, /id="stop" disabled>Stop/);
+
+// Restore remote control for the remaining mode checks.
+states["binary_sensor.washing_machine_remote_control"].state = "on";
+states["binary_sensor.washing_machine_remote_control"].last_updated =
+  "2026-10-26T12:00:04+00:00";
 
 // machMode 2 is running.
 states["sensor.washing_machine_mode"].state = "2";

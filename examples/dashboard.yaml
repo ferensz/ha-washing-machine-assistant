@@ -4,4 +4,5 @@ type: custom:washing-machine-card
 entity: sensor.washing_machine_controls
 title: Washing machine
 mode_entity: sensor.washing_machine_mode
+remote_control_entity: binary_sensor.washing_machine_remote_control
 remaining_entity: sensor.washing_machine_remaining_time
